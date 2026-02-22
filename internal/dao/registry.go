@@ -354,7 +354,12 @@ func loadPreferred(f Factory, m ResourceMetas) error {
 }
 
 func isStandardGroup(gv string) bool {
-	return stdGroups.Has(gv) || strings.Contains(gv, ".k8s.io")
+	if stdGroups.Has(gv) {
+		return true
+	}
+	g, _, _ := strings.Cut(gv, "/")
+
+	return strings.HasSuffix(g, ".k8s.io") && !strings.HasSuffix(g, ".x-k8s.io")
 }
 
 func isScalable(gvr *client.GVR) bool {
