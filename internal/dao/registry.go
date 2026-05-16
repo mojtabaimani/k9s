@@ -370,7 +370,12 @@ func isDeprecated(gvr *client.GVR) bool {
 	return deprecatedGVRs.Has(gvr) || gvr.V() == ""
 }
 
-// loadCRDs Wait for the cache to synced and then add some additional properties to CRD.
+// loadCRDs reads CRDs from the cluster and ensures their metadata is
+// registered. Aggregated discovery (loadPreferred) silently drops groups
+// whose APIService is failing, leaving CRDs invisible to the alias map
+// even though the CRD objects themselves are still listable. Backfilling
+// from the CRD spec keeps drill-in from the CRD list view working when
+// discovery is partial.
 func loadCRDs(f Factory, m ResourceMetas) {
 	if f == nil || f.Client() == nil || !f.Client().ConnectionOK() {
 		return
@@ -390,12 +395,36 @@ func loadCRDs(f Factory, m ResourceMetas) {
 			continue
 		}
 		for gvr, version := range client.NewGVRFromCRD(&crd) {
-			if meta, ok := m[gvr]; ok && version.Subresources != nil && version.Subresources.Scale != nil {
+			meta, ok := m[gvr]
+			if !ok {
+				meta = metaFromCRD(&crd, gvr)
+				m[gvr] = meta
+				slog.Debug("Registered CRD missing from discovery", slogs.GVR, gvr.String())
+			}
+			if version.Subresources != nil && version.Subresources.Scale != nil {
 				if !slices.Contains(meta.Categories, scaleCat) {
 					meta.Categories = append(meta.Categories, scaleCat)
 					m[gvr] = meta
 				}
 			}
 		}
+	}
+}
+
+func metaFromCRD(crd *apiext.CustomResourceDefinition, gvr *client.GVR) *metav1.APIResource {
+	singular := crd.Spec.Names.Singular
+	if singular == "" {
+		singular = strings.ToLower(crd.Spec.Names.Kind)
+	}
+	return &metav1.APIResource{
+		Name:         crd.Spec.Names.Plural,
+		SingularName: singular,
+		Kind:         crd.Spec.Names.Kind,
+		ShortNames:   crd.Spec.Names.ShortNames,
+		Group:        gvr.G(),
+		Version:      gvr.V(),
+		Namespaced:   crd.Spec.Scope == apiext.NamespaceScoped,
+		Verbs:        []string{"get", "list", "watch", "create", "update", "patch", "delete"},
+		Categories:   []string{crdCat},
 	}
 }
