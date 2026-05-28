@@ -1,5 +1,11 @@
 <img src="assets/k9s.png" alt="k9s">
 
+## Fix: "command not found" for x-k8s.io CRDs
+
+This fork fixes a bug where CRDs from `x-k8s.io` groups (Cluster API, Gateway API, JobSet, Kueue, etc.) show "command not found" when selected from the CRD list view. The root cause is that `isStandardGroup()` treated any group containing `.k8s.io` as a built-in Kubernetes API, which incorrectly matched SIG extension groups like `cluster.x-k8s.io`. These resources were never tagged as CRDs, so the required `name.group` alias was never generated. The fix distinguishes standard k8s groups (`*.k8s.io`) from SIG experimental groups (`*.x-k8s.io`). See [upstream issue #2842](https://github.com/derailed/k9s/issues/2842).
+
+---
+
 ## K9s - Kubernetes CLI To Manage Your Clusters In Style!
 
 K9s provides a terminal UI to interact with your Kubernetes clusters.

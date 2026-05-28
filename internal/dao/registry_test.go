@@ -13,6 +13,33 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestIsStandardGroup(t *testing.T) {
+	uu := map[string]struct {
+		gv string
+		e  bool
+	}{
+		"core": {gv: "v1", e: true},
+		"apps": {gv: "apps/v1", e: true},
+		"batch": {gv: "batch/v1", e: true},
+		"networking": {gv: "networking.k8s.io/v1", e: true},
+		"storage": {gv: "storage.k8s.io/v1", e: true},
+		"rbac": {gv: "rbac.authorization.k8s.io/v1", e: true},
+		"flowcontrol": {gv: "flowcontrol.apiserver.k8s.io/v1", e: true},
+		"cluster-api": {gv: "cluster.x-k8s.io/v1beta2", e: false},
+		"cluster-api-infra": {gv: "infrastructure.cluster.x-k8s.io/v1beta2", e: false},
+		"cluster-api-addons": {gv: "addons.cluster.x-k8s.io/v1beta1", e: false},
+		"traefik": {gv: "traefik.io/v1alpha1", e: false},
+		"monitoring": {gv: "monitoring.coreos.com/v1", e: false},
+	}
+
+	for k := range uu {
+		u := uu[k]
+		t.Run(k, func(t *testing.T) {
+			assert.Equal(t, u.e, isStandardGroup(u.gv))
+		})
+	}
+}
+
 func TestMetaFor(t *testing.T) {
 	uu := map[string]struct {
 		gvr *client.GVR
